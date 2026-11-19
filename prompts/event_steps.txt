@@ -1,0 +1,1 @@
+This video is {duration} seconds long. Describe the steps of the event "{event}" in detail, one step per line as [start-end] description.

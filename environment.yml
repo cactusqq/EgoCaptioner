@@ -1,0 +1,15 @@
+name: egocaptioner
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - ffmpeg>=4,<9
+  - pip
+  - pip:
+      - setuptools>=77,<81
+      - wheel
+      - packaging
+      - ninja
+      - psutil
+      - -r requirements.txt

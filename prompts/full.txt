@@ -1,0 +1,1 @@
+This video is {duration} seconds long. Describe the entire video and the core events in order.
