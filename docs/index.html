@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EgoCaptioner</title>
+<meta name="description" content="EgoCaptioner: Towards Comprehensive and Fine-Grained Egocentric Video Captioning">
+<meta name="theme-color" content="#f6f6f5">
+<meta name="color-scheme" content="light">
+<link rel="preload" href="static/fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="static/fonts/source-serif-4.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face {
+    font-family: 'Bricolage Grotesque';
+    src: url('static/fonts/bricolage-grotesque.woff2') format('woff2');
+    font-weight: 400 800;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Source Serif 4';
+    src: url('static/fonts/source-serif-4.woff2') format('woff2');
+    font-weight: 400 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Source Serif 4';
+    src: url('static/fonts/source-serif-4-italic.woff2') format('woff2');
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+  }
+
+  :root {
+    color-scheme: only light;
+    --paper: #f6f6f5;
+    --white: #fff;
+    --ink: #29262c;
+    --body: #403c43;
+    --muted: #625d67;
+    --accent: #654879;
+    --wash: #eeebf1;
+    --line: #d8d5da;
+    --sans: 'Bricolage Grotesque', system-ui, sans-serif;
+    --serif: 'Source Serif 4', Georgia, serif;
+    --gutter: clamp(1.15rem, 5vw, 5rem);
+    --section-gap: clamp(3.5rem, 6vw, 6rem);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 1rem/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, p, figure, ul, ol { margin: 0; }
+  p { text-wrap: pretty; }
+  h1, h2, h3 { text-wrap: balance; }
+  a { color: var(--accent); }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  ::selection { color: var(--ink); background: #e3d6ec; }
+  [hidden] { display: none !important; }
+  .wrap {
+    width: min(calc(100% - 2 * var(--gutter)), 80rem);
+    margin-inline: auto;
+  }
+  .skip {
+    position: absolute; z-index: 2; inset: .75rem auto auto .75rem;
+    transform: translateY(-180%);
+    padding: .5rem 1rem; background: var(--white);
+  }
+  .skip:focus { transform: none; }
+
+  /* Paper title and byline. */
+  .head { padding-block: clamp(2.75rem, 6.2vw, 6rem) var(--section-gap); }
+  .masthead { text-align: center; }
+  .masthead .links { justify-content: center; }
+  .title {
+    font: 650 clamp(2.6rem, 7.4vw, 7rem)/1 var(--sans);
+    letter-spacing: -.025em;
+  }
+  .subtitle {
+    max-width: 55ch; margin: .8rem auto 0;
+    color: var(--accent);
+    font: italic 400 clamp(1.4rem, 2.5vw, 2.45rem)/1.18 var(--serif);
+    letter-spacing: -.025em; text-wrap: balance;
+  }
+  .people {
+    max-width: 65rem; margin: clamp(1.5rem, 2.9vw, 2.75rem) auto 0; text-wrap: balance;
+    font-size: clamp(.96rem, 1.16vw, 1.1rem); line-height: 1.65;
+  }
+  .phrase, .people span, .institutions span, .credits span { display: inline-block; }
+  .affils { margin-top: .7rem; font-size: .86rem; line-height: 1.65; color: var(--muted); }
+  sup { color: var(--accent); font-size: .65em; line-height: 0; }
+  .institutions sup { margin-right: 1px; }
+  .credits { margin-top: .3rem; font: italic 400 .9rem/1.55 var(--serif); }
+  .links { margin-top: 1.35rem; display: flex; align-items: center; flex-wrap: wrap; gap: .2rem 1.35rem; }
+  .resource { display: inline-flex; gap: .42rem; align-items: center; min-height: 44px; font-weight: 600; font-size: .94rem; }
+  a.resource { text-underline-offset: .26em; text-decoration-color: #b5a6c0; }
+  a.resource:hover { text-decoration-color: currentColor; }
+  .resource svg { width: 1.02rem; height: 1.02rem; fill: currentColor; flex: none; }
+  .soon { color: var(--muted); font-weight: 400; }
+  /* Interactive video and transcript. */
+  section { padding-block: var(--section-gap); }
+  .cases { background: var(--white); }
+  h2 {
+    font: 500 clamp(2.1rem, 4.1vw, 3.65rem)/1.05 var(--serif);
+    letter-spacing: -.045em; scroll-margin-block-start: 1.5rem;
+  }
+  .cases-intro { color: var(--muted); margin-top: .8rem; font-size: 1rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0 1.5rem; margin-block: 1.3rem .9rem; }
+  .tab {
+    border: 0; border-bottom: 2px solid transparent;
+    min-height: 44px; padding: .5rem .1rem;
+    color: var(--muted); background: transparent; font-weight: 500;
+  }
+  .tab:hover, .tab[aria-selected='true'] { color: var(--accent); }
+  .tab[aria-selected='true'] { border-color: currentColor; font-weight: 650; }
+  .reader { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .view { position: relative; background: #242226; aspect-ratio: 16/9; }
+  .view video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .pane {
+    min-width: 0; max-height: 27rem; padding: clamp(1rem, 2.4vw, 2.25rem);
+    overflow-y: auto; overscroll-behavior-y: contain;
+    scrollbar-color: #bbb1c3 var(--white);
+  }
+  .pane-h { color: var(--accent); font: 600 .94rem/1.4 var(--sans); }
+  .question { margin-block: .35rem 1.4rem; font: italic 400 1.2rem/1.42 var(--serif); }
+  .overview, .what { font: 400 1rem/1.6 var(--serif); color: var(--body); }
+  .overview { margin-block: .4rem 1.6rem; }
+  .steps { padding: 0; list-style: none; margin-top: .4rem; }
+  .step {
+    border: 0; border-top: 1px solid var(--line); border-radius: 0;
+    min-height: 44px; width: 100%; padding: .8rem .4rem;
+    display: grid; gap: .25rem; text-align: start; background: transparent;
+  }
+  .step:focus-visible { outline-offset: -3px; }
+  .step:hover, .step[aria-current='true'] { background: var(--wash); }
+  .t { color: var(--accent); font: 550 .85rem/1.6 var(--sans); font-variant-numeric: tabular-nums; }
+  @media (min-width: 49rem) {
+    .reader { grid-template-columns: minmax(0,1.32fr) minmax(0,1fr); }
+    .view { aspect-ratio: auto; }
+    .pane { height: clamp(23rem, 35vw, 31rem); max-height: none; }
+  }
+  @media (max-width: 36rem) {
+    .soon { justify-content: center; flex-basis: 100%; min-height: auto; font-size: .85rem; }
+    .tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 .8rem; }
+    .tab { text-align: start; }
+  }
+  @media (min-width: 42rem) {
+    .step { grid-template-columns: max-content minmax(0,1fr); column-gap: .9rem; }
+  }
+
+  /* The abstract reads across the spread, with its figures in the margin. */
+  .abstract-layout { display: grid; gap: 1.45rem; }
+  .prose { color: var(--body); font: 400 clamp(1.04rem, 1.3vw, 1.21rem)/1.62 var(--serif); }
+  .prose p + p { margin-top: 1.1em; }
+  .prose .lead { color: var(--ink); font-size: 1.19em; line-height: 1.45; letter-spacing: -.016em; }
+  .prose em { color: var(--accent); }
+  .facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); list-style: none; padding: 0; gap: 1rem; }
+  .facts li { border-top: 1px solid var(--line); padding-top: .7rem; color: var(--muted); font-size: .875rem; line-height: 1.35; text-wrap: balance; }
+  .facts b { display: block; color: var(--accent); font: 400 clamp(1.7rem, 3vw, 2.75rem)/1.15 var(--serif); letter-spacing: -.04em; }
+  @media (min-width: 54rem) {
+    .abstract-layout {
+      grid-template-columns: minmax(10rem,1fr) minmax(0,2.55fr);
+      grid-template-rows: auto 1fr;
+      column-gap: clamp(3rem, 7vw, 7.5rem); row-gap: 2rem;
+    }
+    .prose { grid-column: 2; grid-row: 1 / 3; }
+    .facts { grid-column: 1; grid-row: 2; grid-template-columns: 1fr; align-self: start; max-width: 15rem; }
+  }
+  @media (max-width: 25rem) {
+    .facts { gap: .6rem; }
+    .facts li { font-size: .8rem; }
+  }
+
+  /* Keep the original figures large enough to inspect. */
+  .format { background: var(--white); }
+  .paper-figure { margin-top: clamp(1.35rem, 3vw, 2.5rem); }
+  .fig { display: block; background: var(--white); border: 1px solid var(--line); border-radius: 6px; padding: clamp(.35rem, 1.4vw, 1.3rem); }
+  .fig img { display: block; width: 100%; height: auto; }
+  .paper-figure figcaption { margin-top: .8rem; max-width: 82ch; color: var(--muted); font: 400 .96rem/1.55 var(--serif); }
+  .paper-figure figcaption b { color: var(--ink); font-weight: 600; }
+  .method-grid {
+    display: grid; gap: 2.5rem;
+    margin-top: clamp(1.5rem, 3vw, 2.6rem);
+  }
+  .method-block { min-width: 0; }
+  .method-h { color: var(--accent); font: italic 400 clamp(1.55rem, 2.9vw, 2.25rem)/1.2 var(--serif); }
+  .method-p { margin-top: .65rem; font: 400 1.08rem/1.58 var(--serif); color: var(--body); }
+  .method-grid .paper-figure { margin-top: 1.2rem; }
+  @media (min-width: 48rem) {
+    .method-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem clamp(1.7rem, 3vw, 3rem); }
+    .method-block { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+    .method-p, .method-grid .paper-figure { margin-top: 0; }
+    .method-block .fig { aspect-ratio: 1.64; display: grid; place-items: center; padding: .55rem; }
+    .method-block img { max-height: 100%; object-fit: contain; }
+  }
+
+  .results { background: var(--white); }
+  .result-wrap { container-type: inline-size; }
+  .table-caption { margin-block: 1rem 1.5rem; color: var(--body); font: 400 1.15rem/1.5 var(--serif); }
+  .table-caption b { font-weight: 600; }
+  .table-scroll { overflow-x: auto; border-block: 1px solid var(--line); }
+  .table-hint { display: none; }
+  @container (width < 66rem) {
+    .table-hint { display: block; margin-bottom: .45rem; font-size: .83rem; color: var(--muted); }
+  }
+  .results table {
+    width: 100%; min-width: 66rem; border-spacing: 0;
+    color: var(--body); font: 400 .9rem/1.4 var(--sans);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .results th, .results td { padding: .55rem .4rem; text-align: center; white-space: nowrap; }
+  .results thead th { font-weight: 600; color: var(--ink); }
+  .results thead tr:last-child th { color: var(--muted); font-size: .82rem; border-top: 1px solid var(--line); }
+  .results th[scope='colgroup'] + th { border-left: 1px solid var(--line); }
+  .results .model { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--white); border-right: 1px solid var(--line); padding-left: .65rem; }
+  .results tbody .model { font-weight: 500; }
+  .model-group th { background: #f2f1f3; }
+  .results .model-group th { text-align: left; font-weight: 600; font-size: .86rem; color: var(--muted); padding-inline: .65rem; }
+  .results .ours > tr > * { border-top: 1px solid var(--accent); }
+  .results .ours .model { font-weight: 700; color: var(--accent); }
+  .best { color: var(--accent); background: var(--wash); font-weight: 650; }
+  .second { text-decoration: underline; text-underline-offset: .17em; }
+  .table-notes { margin-top: 1rem; max-width: 95ch; font: 400 .92rem/1.55 var(--serif); color: var(--muted); }
+  .table-notes .best { padding-inline: .2em; }
+  footer { color: var(--muted); font-size: .85rem; }
+  footer .wrap { border-top: 1px solid var(--line); padding-block: 1.45rem 2.1rem; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class='head'>
+  <div class='wrap masthead'>
+    <h1 class='title' translate='no'>EgoCaptioner</h1>
+    <p class='subtitle'>Towards Comprehensive <span class='phrase'>and Fine-Grained</span> Egocentric <span class='phrase'>Video Captioning</span></p>
+    <p class='people'>
+      <span>Yuqi Tang<sup>1,2</sup>,</span>
+      <span><a href="https://frankyang-17.github.io/">Yang Shi</a><sup>3,2,†</sup>,</span>
+      <span>Yuran Wang<sup>3</sup>,</span>
+      <span>Tengfei Liu<sup>3</sup>,</span>
+      <span>Rundong Wang<sup>4</sup>,</span>
+      <span>Zongyang Qiu<sup>1</sup>,</span>
+      <span>Qixun Wang<sup>3</sup>,</span>
+      <span>Zhuoran Zhang<sup>3</sup>,</span>
+      <span>Xuanyu Zhu<sup>3</sup>,</span>
+      <span>Yifan Xu<sup>5</sup>,</span>
+      <span>Yiyan Ji<sup>5</sup>,</span>
+      <span>Shujie Li<sup>6</sup>,</span>
+      <span>Shixuan Liu<sup>7</sup>,</span>
+      <span>Haotian Wang<sup>7</sup>,</span>
+      <span>Yuanxing Zhang<sup>2,♠</sup>,</span>
+      <span>Pengfei Wan<sup>2</sup>,</span>
+      <span>Chengwei Qin<sup>1,†</sup></span>
+    </p>
+    <div class='affils'>
+      <p class='institutions'><span><sup>1</sup>HKUST(GZ),</span> <span><sup>2</sup>KlingAI Research,</span> <span><sup>3</sup>PKU,</span> <span><sup>4</sup>USTC,</span> <span><sup>5</sup>NJU,</span> <span><sup>6</sup>HKU,</span> <span><sup>7</sup>THU.</span></p>
+      <p class='credits'><span>† Corresponding Author</span> <span>♠ Project Lead</span></p>
+    </div>
+    <nav class='links' aria-label='Resources'>
+      <a class='resource' href='https://github.com/cactusqq/EgoCaptioner'>
+        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z'/></svg>
+        Code
+      </a>
+      <a class='resource' href='https://huggingface.co/Vickyinmyheart824/EgoCaptioner'>
+        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 2 3 7v10l9 5 9-5V7zm0 2.3 6.6 3.7L12 11.7 5.4 8zM5 9.7l6 3.4v6.6l-6-3.4zm8 10V13.1l6-3.4v6.6z'/></svg>
+        Model Weights
+      </a>
+      <span class='resource soon' aria-disabled='true'>
+        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M6 2h9l5 5v15H6zm8 1.5V8h4.5zM8 12h8v1.5H8zm0 3.5h8V17H8z'/></svg>
+        arXiv Paper (Coming Soon)
+      </span>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<section class='cases' aria-labelledby='cases-h'>
+  <div class='wrap'>
+    <h2 id='cases-h'>Example Captions</h2>
+    <p class='cases-intro'>Pick a task type, play the video, and select a step to jump to that moment.</p>
+    <div class='tabs' role='tablist' aria-label='Task type'>
+      <button class='tab' type='button' role='tab' id='tab-manip' data-id='manip' aria-selected='true' aria-controls='case-panel'>Manipulation</button>
+      <button class='tab' type='button' role='tab' id='tab-locomote' data-id='locomote' aria-selected='false' aria-controls='case-panel' tabindex='-1'>Locomotion</button>
+      <button class='tab' type='button' role='tab' id='tab-social' data-id='social' aria-selected='false' aria-controls='case-panel' tabindex='-1'>Social Interaction</button>
+      <button class='tab' type='button' role='tab' id='tab-attend' data-id='attend' aria-selected='false' aria-controls='case-panel' tabindex='-1'>Visual Attention</button>
+    </div>
+    <div class='reader' id='case-panel' role='tabpanel' aria-labelledby='tab-manip'>
+      <div class='view' id='view'>
+        <video id='vid' controls playsinline preload='metadata' aria-label='Egocentric video for the selected example'></video>
+      </div>
+      <div class='pane'>
+        <h3 class='pane-h'>Question</h3>
+        <p class='question' id='q'></p>
+        <div id='ov-wrap'>
+          <h3 class='pane-h'>Overview</h3>
+          <p class='overview' id='ov'></p>
+        </div>
+        <h3 class='pane-h'>Detailed Steps</h3>
+        <ol class='steps' id='steps'></ol>
+      </div>
+    </div>
+  </div>
+</section>
+<section aria-labelledby='abstract'>
+  <div class='wrap abstract-layout'>
+    <h2 id='abstract'>Abstract</h2>
+    <div class='prose'>
+      <p class='lead'>Egocentric video captioning requires <em>fine-grained detail</em> and <em>accurate timing</em>, yet current multimodal large language models (MLLMs) often miss brief actions, confuse their order, or misinterpret the wearer’s motion. Existing caption formats also offer limited support for combining detailed narration with precise timing.</p>
+      <p>We present EgoCaptioner, which pairs a video-level overview of the setting, participants, and the wearer’s overall activity with timed steps whose narration adapts to varying perceptual demands and marks key moments at specific timestamps. We develop a coarse-to-fine annotation pipeline that establishes event structure before expanding step descriptions, yielding 50,000 training examples from eight egocentric <span class='phrase'>video sources.</span></p>
+      <p>Complementary rewards assess factual accuracy and coverage, measure step-level temporal alignment, and penalize fragmented or redundant narration, guiding caption refinement through Group Relative Policy Optimization (GRPO). To improve the reliability of factual supervision, we supplement caption references with pose-derived motion facts when sensor data <span class='phrase'>are available.</span></p>
+      <p>Across five egocentric benchmarks, EgoCaptioner achieves leading performance among evaluated open-source models in caption quality, caption-conditioned question answering, and temporal alignment. It also surpasses Gemini 3.1 Pro on PhysCapBench and all evaluated proprietary baselines on Minerva-Ego under the caption-to-QA protocol. Ablations support the complementary roles of factual and temporal rewards and show that coarse-to-fine annotation provides more effective supervision than <span class='phrase'>single-pass annotation.</span></p>
+    </div>
+    <ul class='facts'>
+      <li><b>50,000</b>training examples</li>
+      <li><b>8</b>egocentric video sources</li>
+      <li><b>5</b>evaluation benchmarks</li>
+    </ul>
+  </div>
+</section>
+
+<section class='format' aria-labelledby='format'>
+  <div class='wrap'>
+    <h2 id='format'>What a Caption Covers</h2>
+    <figure class='paper-figure'>
+      <a class='fig' href='static/teaser.png'><img src='static/teaser.png' alt='EgoCaptioner overview: an egocentric video is described by an overview and timed detailed steps, with structured understanding, accurate motion validated by pose, and task-focused details for manipulation, locomotion, social interaction and attention.' width='1800' height='876' loading='lazy'></a>
+      <figcaption>Each caption pairs an <b>overview</b> of the scene, people and overall activity with <b>timed steps</b>. Step narration adapts to what the moment needs: hand–object interaction, spatial movement, social interaction, or visual attention. Motion descriptions are checked against body and camera poses when sensor data exist.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section aria-labelledby='method'>
+  <div class='wrap'>
+    <h2 id='method'>Method</h2>
+    <div class='method-grid'>
+      <div class='method-block'>
+        <h3 class='method-h'>Data Construction</h3>
+        <p class='method-p'>Gemini 3.1 Pro and Seed 2.1 Pro annotate each video from a global overview to event outlines and then timestamped steps. The draft is reviewed against the full video and corrected. Body and camera poses are converted into timed motion facts.</p>
+        <figure class='paper-figure'>
+          <a class='fig' href='static/pipeline.png'><img src='static/pipeline.png' alt='Data construction pipeline with four stages: coarse-to-fine annotation, review and correction, instruction construction, and pose-derived motion facts.' width='2000' height='1203' loading='lazy'></a>
+          <figcaption><b>Data construction.</b> Each validated caption yields full-video, event-conditioned, and overview instructions.</figcaption>
+        </figure>
+      </div>
+      <div class='method-block'>
+        <h3 class='method-h'>Rewards for GRPO</h3>
+        <p class='method-p'>Step-level captions combine fact, time, and style rewards. The fact reward is the F1 of judge-scored precision and recall over extracted facts. The time reward matches predicted and reference steps by temporal IoU. The style reward penalizes fragmented or redundant steps. Overview captions pair the content reward with a format reward.</p>
+        <figure class='paper-figure'>
+          <a class='fig' href='static/rewards.png'><img src='static/rewards.png' alt='Reward design: fact, time and style rewards for step-level captions, and content plus format rewards for overview captions.' width='2000' height='1014' loading='lazy'></a>
+          <figcaption><b>Reward design</b> for egocentric captioning.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+<section class='results' aria-labelledby='benchmarks'>
+  <div class='wrap result-wrap'>
+    <h2 id='benchmarks'>Benchmark Results</h2>
+    <p class='table-caption' id='table-one'><b>Table 1.</b> Caption quality, video understanding, and temporal alignment across five egocentric benchmarks.</p>
+    <p class='table-hint'>Scroll horizontally to see all metrics.</p>
+    <div class='table-scroll' role='region' aria-labelledby='benchmarks' tabindex='0'>
+      <table aria-labelledby="table-one" aria-describedby="table-notes">
+        <colgroup span="1"></colgroup>
+        <colgroup span="4"></colgroup>
+        <colgroup span="3"></colgroup>
+        <colgroup span="2"></colgroup>
+        <colgroup span="1"></colgroup>
+        <colgroup span="1"></colgroup>
+        <colgroup span="1"></colgroup>
+        <thead>
+          <tr><th scope="col" class="model" rowspan="2">Model</th>
+            <th scope="colgroup" colspan="4">EgoMe-Overview</th>
+            <th scope="colgroup" colspan="3">EgoMe-Steps</th>
+            <th scope="colgroup" colspan="2">EgoTempo</th>
+            <th scope="colgroup" colspan="1">Minerva-Ego</th>
+            <th scope="colgroup" colspan="1">EgoHome</th>
+            <th scope="colgroup" colspan="1">PhysCapBench</th>
+          </tr>
+          <tr>
+            <th scope="col">B@4</th>
+            <th scope="col">METEOR</th>
+            <th scope="col">R-L</th>
+            <th scope="col">CIDEr</th>
+            <th scope="col">METEOR</th>
+            <th scope="col">SODA-c</th>
+            <th scope="col">SODA-d</th>
+            <th scope="col">Acc</th>
+            <th scope="col">Score</th>
+            <th scope="col">Acc<sub>open</sub></th>
+            <th scope="col">PSJ</th>
+            <th scope="col">Overall</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="model-group"><th scope="rowgroup" colspan="13">Proprietary MLLMs</th></tr>
+          <tr><th scope="row" class="model">Gemini 3.1 Pro</th>
+            <td>3.32</td><td>18.62</td><td>24.45</td><td>5.61</td><td>3.98</td><td>7.41</td><td>46.80</td><td>23.60</td><td>1.444</td><td>4.29</td><td>52.86</td><td>75.06</td></tr>
+          <tr><th scope="row" class="model">Gemini 3.8 Flash</th>
+            <td>2.62</td><td>19.27</td><td>22.12</td><td>0.79</td><td>6.26</td><td>10.34</td><td>48.31</td><td>41.20</td><td>2.310</td><td>7.14</td><td>71.09</td><td>82.77</td></tr>
+          <tr><th scope="row" class="model">GPT-6-Astra</th>
+            <td>1.28</td><td>16.12</td><td>15.95</td><td>0.00</td><td>5.91</td><td>6.25</td><td>43.12</td><td>52.60</td><td>2.842</td><td>15.71</td><td>79.42</td><td>84.87</td></tr>
+        </tbody>
+        <tbody>
+          <tr class="model-group"><th scope="rowgroup" colspan="13">Open-source MLLMs and Captioners</th></tr>
+          <tr><th scope="row" class="model">Qwen3-VL-8B-Instruct</th>
+            <td>1.59</td><td>15.72</td><td>16.50</td><td>0.05</td><td>5.73</td><td>6.34</td><td>43.33</td><td>14.00</td><td>0.966</td><td>1.43</td><td>55.88</td><td>68.94</td></tr>
+          <tr><th scope="row" class="model">Qwen3-VL-8B-Thinking</th>
+            <td>1.73</td><td>15.93</td><td>18.18</td><td>0.45</td><td>4.68</td><td>5.48</td><td>38.05</td><td>17.20</td><td>1.100</td><td>1.43</td><td>54.02</td><td>68.98</td></tr>
+          <tr><th scope="row" class="model">Qwen3.5-9B</th>
+            <td>2.65</td><td class="second">17.58</td><td>22.59</td><td class="second">4.01</td><td>5.71</td><td class="second">8.02</td><td class="second">50.25</td><td>21.60</td><td>1.388</td><td>0.00</td><td>46.90</td><td>51.24</td></tr>
+          <tr><th scope="row" class="model">Qwen3.8-27B</th>
+            <td>1.37</td><td>15.71</td><td>14.82</td><td>0.02</td><td class="second">7.24</td><td>7.09</td><td>45.67</td><td>30.80</td><td>1.842</td><td>11.43</td><td class="second">69.28</td><td>69.55</td></tr>
+          <tr><th scope="row" class="model">Molmo2-8B</th>
+            <td>1.20</td><td>14.64</td><td>15.02</td><td>0.11</td><td>4.76</td><td>4.30</td><td>38.19</td><td>19.20</td><td>1.204</td><td>7.14</td><td>54.20</td><td>53.20</td></tr>
+          <tr><th scope="row" class="model">Tarsier2-7B</th>
+            <td>2.72</td><td>17.36</td><td>21.05</td><td>1.01</td><td>0.00</td><td>0.00</td><td>0.00</td><td>18.00</td><td>1.212</td><td>2.86</td><td>0.00</td><td>62.92</td></tr>
+          <tr><th scope="row" class="model">CapRL-Video-4B</th>
+            <td>1.34</td><td>14.23</td><td>12.50</td><td>0.00</td><td>4.10</td><td>3.17</td><td>30.25</td><td class="second">31.80</td><td class="second">1.978</td><td>10.00</td><td>62.87</td><td class="second">75.94</td></tr>
+          <tr><th scope="row" class="model">TimeLens-8B</th>
+            <td>1.59</td><td>15.35</td><td>16.23</td><td>0.10</td><td>6.37</td><td>7.10</td><td>46.93</td><td>17.80</td><td>1.124</td><td>1.43</td><td>60.15</td><td>60.25</td></tr>
+          <tr><th scope="row" class="model">AVoCaDO</th>
+            <td>1.14</td><td>13.53</td><td>12.64</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>13.60</td><td>0.918</td><td>4.29</td><td>0.00</td><td>60.84</td></tr>
+        </tbody>
+        <tbody>
+          <tr class="model-group"><th scope="rowgroup" colspan="13">Egocentric MLLMs and Captioners</th></tr>
+          <tr><th scope="row" class="model">EgoThinker<sup>†</sup></th>
+            <td class="second">2.96</td><td>15.86</td><td class="second">23.03</td><td class="best">4.85</td><td>1.86</td><td>1.79</td><td>14.93</td><td>24.40</td><td>1.770</td><td class="second">15.71</td><td>9.48</td><td>39.88</td></tr>
+          <tr><th scope="row" class="model">EgoGPT</th>
+            <td>2.01</td><td>14.17</td><td>19.98</td><td>2.50</td><td>0.00</td><td>0.00</td><td>0.00</td><td>9.20</td><td>0.690</td><td>0.00</td><td>0.00</td><td>32.92</td></tr>
+        </tbody>
+        <tbody class="ours">
+          <tr><th scope="row" class="model">EgoCaptioner</th>
+            <td class="best">4.03</td><td class="best">20.40</td><td class="best">23.59</td><td>0.65</td><td class="best">12.26</td><td class="best">8.04</td><td class="best">56.38</td><td class="best">38.40</td><td class="best">2.066</td><td class="best">18.57</td><td class="best">75.51</td><td class="best">78.84</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class='table-notes' id='table-notes'>Higher is better for every metric. All scores are scaled by 100 except EgoTempo Score (0–5). B@4 denotes BLEU-4 and R-L denotes ROUGE-L. PhysCapBench Overall averages seven dimensions. † indicates direct video QA. <span class='best'>Best</span> and <span class='second'>second-best</span> mark rankings among open-source models.</p>
+  </div>
+</section>
+</main>
+<footer>
+  <div class="wrap">© 2026 The EgoCaptioner authors. Figures are from the paper.</div>
+</footer>
+<script src="static/cases.js"></script>
+<script>
+(function () {
+  var cases = window.EGO_CASES || [];
+  var byId = {};
+  var vid = document.getElementById('vid');
+  var panel = document.getElementById('case-panel');
+  var pane = panel.querySelector('.pane');
+  var qEl = document.getElementById('q');
+  var ovWrap = document.getElementById('ov-wrap');
+  var ovEl = document.getElementById('ov');
+  var stepsEl = document.getElementById('steps');
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var fmt = new Intl.NumberFormat('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var current = null, stepBtns = [], active = -1;
+
+  function parse(answer) {
+    var overview = '', body = answer;
+    var m = answer.match(/^\[overview\]\s*([\s\S]*?)\s*\[detailed steps\]\s*([\s\S]*)$/);
+    if (m) { overview = m[1]; body = m[2]; }
+    var steps = [];
+    body.split(/\n\s*\n/).forEach(function (block) {
+      var s = block.trim().match(/^\[(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\]\s*([\s\S]*)$/);
+      if (s) steps.push({ start: +s[1], end: +s[2], text: s[3].trim() });
+    });
+    return { overview: overview, steps: steps };
+  }
+  cases.forEach(function (c) { c.parsed = parse(c.answer); byId[c.id] = c; });
+
+  function setActive(i) {
+    if (i === active) return;
+    active = i;
+    stepBtns.forEach(function (b, k) {
+      if (k === i) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+  }
+
+  function stepAt(t) {
+    var steps = current.parsed.steps, idx = -1;
+    for (var k = 0; k < steps.length; k++) { if (steps[k].start <= t + 0.05) idx = k; }
+    return idx;
+  }
+
+  function seek(t) {
+    vid.currentTime = t;
+    setActive(stepAt(t));
+    var p = vid.play();
+    if (p && p.catch) p.catch(function () {});
+  }
+
+  function show(id) {
+    var c = byId[id];
+    if (!c) return;
+    current = c;
+    tabs.forEach(function (t) {
+      var on = t.dataset.id === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+    });
+    panel.setAttribute('aria-labelledby', 'tab-' + id);
+    qEl.textContent = c.question;
+    ovWrap.hidden = !c.parsed.overview;
+    ovEl.textContent = c.parsed.overview;
+    stepsEl.textContent = '';
+    stepBtns = [];
+    active = -1;
+    c.parsed.steps.forEach(function (s) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'step';
+      var t = document.createElement('span');
+      t.className = 't';
+      t.textContent = fmt.format(s.start) + '–' + fmt.format(s.end) + ' s';
+      var w = document.createElement('span');
+      w.className = 'what';
+      w.textContent = s.text;
+      b.appendChild(t);
+      b.appendChild(w);
+      b.addEventListener('click', function () { seek(s.start); });
+      li.appendChild(b);
+      stepsEl.appendChild(li);
+      stepBtns.push(b);
+    });
+    pane.scrollTop = 0;
+    vid.pause();
+    vid.poster = 'static/cases/' + c.id + '/poster.jpg';
+    vid.src = c.video;
+    vid.load();
+  }
+
+  function select(id) {
+    show(id);
+    try { history.replaceState(null, '', '#' + id); } catch (e) {}
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t.dataset.id); });
+    t.addEventListener('keydown', function (e) {
+      var n = -1;
+      if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = tabs.length - 1;
+      if (n < 0) return;
+      e.preventDefault();
+      tabs[n].focus();
+      select(tabs[n].dataset.id);
+    });
+  });
+
+  ['timeupdate', 'seeked', 'ended'].forEach(function (ev) {
+    vid.addEventListener(ev, function () { if (current) setActive(stepAt(vid.currentTime)); });
+  });
+
+  function fromHash() {
+    var id = location.hash.slice(1);
+    return byId[id] ? id : 'manip';
+  }
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+
+  if (cases.length) show(fromHash());
+  else qEl.textContent = 'The examples could not be loaded. Reload the page to try again.';
+
+})();
+</script>
+</body>
+</html>

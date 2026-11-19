@@ -1,5 +1,6 @@
 # 👁️ EgoCaptioner: Towards Comprehensive and Fine-Grained Egocentric Video Captioning
 
+[![Project Page](https://img.shields.io/badge/Project-Page-654879?style=for-the-badge)](https://cactusqq.github.io/EgoCaptioner/)
 [![](https://img.shields.io/badge/Model-HuggingFace-db8905?style=for-the-badge)](https://huggingface.co/Vickyinmyheart824/EgoCaptioner)
 
 ---
